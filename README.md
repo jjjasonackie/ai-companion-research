@@ -1,309 +1,321 @@
-import { useState, useRef } from "react";
+# AI情感陪伴产品竞品分析
+**作者：高若彤 | 2026年4月**  
+**研究方法：深度用户实践（累计使用时长18个月+）+ 行业数据**
 
-const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0d0d0f; color: #e8e0d5; font-family: 'Noto Sans SC', sans-serif; }
-  .app {
-    min-height: 100vh;
-    background: #0d0d0f;
-    background-image: radial-gradient(ellipse at 15% 15%, rgba(180,140,100,0.07) 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, rgba(120,100,160,0.05) 0%, transparent 55%);
-    padding: 36px 20px 60px;
-  }
-  .header { text-align: center; margin-bottom: 36px; }
-  .header-title { font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 700; color: #c9a96e; letter-spacing: 4px; margin-bottom: 6px; }
-  .header-sub { font-size: 11px; color: #5a5450; letter-spacing: 2px; text-transform: uppercase; }
-  .mode-bar { display: flex; max-width: 860px; margin: 0 auto 20px; border: 1px solid rgba(201,169,110,0.2); border-radius: 2px; overflow: hidden; }
-  .mode-btn { flex: 1; padding: 10px; background: transparent; border: none; color: #5a5450; font-size: 12px; letter-spacing: 1.5px; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans SC', sans-serif; }
-  .mode-btn.active { background: rgba(201,169,110,0.12); color: #c9a96e; }
-  .mode-btn + .mode-btn { border-left: 1px solid rgba(201,169,110,0.2); }
-  .container { max-width: 860px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  @media (max-width: 680px) { .container { grid-template-columns: 1fr; } }
-  .panel { background: rgba(255,255,255,0.025); border: 1px solid rgba(201,169,110,0.13); border-radius: 2px; padding: 24px; }
-  .panel-title { font-family: 'Noto Serif SC', serif; font-size: 12px; color: #c9a96e; letter-spacing: 3px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid rgba(201,169,110,0.13); }
-  .field { margin-bottom: 16px; }
-  .field label { display: block; font-size: 10px; color: #7a6e66; letter-spacing: 1.5px; margin-bottom: 6px; text-transform: uppercase; }
-  .field input, .field textarea, .field select { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(201,169,110,0.18); border-radius: 2px; padding: 9px 11px; color: #e8e0d5; font-family: 'Noto Sans SC', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; resize: vertical; }
-  .field input:focus, .field textarea:focus, .field select:focus { border-color: rgba(201,169,110,0.45); }
-  .field select option { background: #1a1815; }
-  .field textarea { min-height: 68px; line-height: 1.6; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
-  .chip { padding: 3px 10px; border: 1px solid rgba(201,169,110,0.2); border-radius: 20px; font-size: 11px; color: #7a6e66; cursor: pointer; transition: all 0.15s; background: transparent; font-family: 'Noto Sans SC', sans-serif; }
-  .chip:hover { border-color: rgba(201,169,110,0.5); color: #c9a96e; }
-  .format-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-  .tab { flex: 1; padding: 8px; background: transparent; border: 1px solid rgba(201,169,110,0.18); border-radius: 2px; color: #5a5450; font-size: 11px; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans SC', sans-serif; }
-  .tab.active { background: rgba(201,169,110,0.1); border-color: rgba(201,169,110,0.45); color: #c9a96e; }
-  .generate-btn { width: 100%; padding: 13px; background: linear-gradient(135deg, rgba(201,169,110,0.14), rgba(201,169,110,0.07)); border: 1px solid rgba(201,169,110,0.38); border-radius: 2px; color: #c9a96e; font-family: 'Noto Serif SC', serif; font-size: 13px; letter-spacing: 3px; cursor: pointer; transition: all 0.2s; }
-  .generate-btn:hover:not(:disabled) { background: linear-gradient(135deg, rgba(201,169,110,0.22), rgba(201,169,110,0.13)); }
-  .generate-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  .output-panel { grid-column: 1 / -1; }
-  .output-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid rgba(201,169,110,0.13); }
-  .copy-btn { padding: 5px 14px; background: transparent; border: 1px solid rgba(201,169,110,0.28); border-radius: 2px; color: #c9a96e; font-size: 11px; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans SC', sans-serif; }
-  .copy-btn:hover { border-color: rgba(201,169,110,0.55); }
-  .copy-btn.ok { color: #7abf7a; border-color: rgba(122,191,122,0.4); }
-  .output-text { width: 100%; min-height: 300px; background: rgba(0,0,0,0.28); border: 1px solid rgba(201,169,110,0.1); border-radius: 2px; padding: 18px; color: #c0b8ad; font-family: 'Noto Sans SC', sans-serif; font-size: 13px; line-height: 1.85; white-space: pre-wrap; resize: vertical; outline: none; }
-  .output-text:focus { border-color: rgba(201,169,110,0.28); }
-  .placeholder-text { color: #2e2a26; font-style: italic; font-size: 12px; line-height: 2.2; }
-  .loading { display: flex; align-items: center; gap: 10px; color: #6a6056; font-size: 12px; letter-spacing: 1px; padding: 20px 0; }
-  .dot { width: 4px; height: 4px; border-radius: 50%; background: #c9a96e; animation: pulse 1.2s ease-in-out infinite; }
-  .dot:nth-child(2) { animation-delay: 0.2s; } .dot:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes pulse { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
-  .diag-full { grid-column: 1/-1; }
-  .tips { grid-column: 1/-1; font-size: 11px; color: #3a3530; letter-spacing: 1px; line-height: 2; text-align: center; margin-top: 4px; }
-`;
+---
 
-const PERSONALITY_CHIPS = ["温柔体贴","外热内冷","冷淡疏离","腹黑温柔","霸道占有欲强","活泼开朗","忧郁敏感","骄傲高冷","痴情专一","亦正亦邪","病娇","傲娇"];
-const RELATIONSHIP_CHIPS = ["新婚伴侣","恋人","青梅竹马","师徒","主仆","对手/宿敌","前任","复杂的前任关系","命中注定的陌生人"];
+## 一、研究背景与方法论
 
-async function callClaude(prompt, tokens = 2000) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: tokens, messages: [{ role: "user", content: prompt }] })
-  });
-  const data = await res.json();
-  return data.content?.map(b => b.text || "").join("") || "生成失败，请重试";
-}
+本文基于作者作为重度付费用户的第一手体验，对国内外主流AI情感陪伴产品进行横向对比分析。覆盖产品：**猫箱（字节）、Flai、星野（MiniMax）、独响、bimobimo、Character.AI、Kindroid**。
 
-export default function App() {
-  const [mode, setMode] = useState("generate");
-  const [format, setFormat] = useState("prose");
-  const [loading, setLoading] = useState(false);
-  const [output, setOutput] = useState("");
-  const [copyState, setCopyState] = useState("idle");
-  const [diagInput, setDiagInput] = useState(() => {
-    try { return localStorage.getItem("cc_diagInput") || ""; } catch(e) { return ""; }
-  });
-  const updateDiagInput = (v) => {
-    setDiagInput(v);
-    try { localStorage.setItem("cc_diagInput", v); } catch(e) {}
-  };
-  const clearDiag = () => {
-    setDiagInput("");
-    try { localStorage.removeItem("cc_diagInput"); } catch(e) {}
-  };
-  const [diagTarget, setDiagTarget] = useState("酒馆/SillyTavern");
-  const [maxTokens, setMaxTokens] = useState(2000);
-  const textareaRef = useRef(null);
+研究视角以ToC情感陪伴场景为核心，重点关注：
+- 角色一致性与记忆机制
+- 付费体系设计逻辑
+- 用户留存驱动力
+- 平台监管策略与内容边界
 
-  const [form, setForm] = useState({
-    name: "", gender: "男", age: "", appearance: "",
-    personality: "", background: "", relationship: "",
-    speakStyle: "", quirks: "", userName: "",
-    userExpanded: false, userName2: "", userAge: "", userBg: "", userPersonality: "",
-  });
+---
 
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
-  const appendChip = (k, v) => setForm(p => ({ ...p, [k]: p[k] ? p[k] + "、" + v : v }));
+## 二、市场概览
 
-  const buildGenPrompt = () => {
-    const user = form.userName || "你";
-    const lines = [
-      `角色名：${form.name}`,
-      form.gender && `性别：${form.gender}`,
-      form.age && `年龄：${form.age}`,
-      form.appearance && `外貌：${form.appearance}`,
-      form.personality && `性格：${form.personality}`,
-      form.background && `背景：${form.background}`,
-      form.relationship && `与用户关系：${form.relationship}`,
-      `角色称用户为：${user}`,
-      (form.userName2 || form.userAge || form.userBg || form.userPersonality) && `\n用户信息：${[form.userName2 && "名字："+form.userName2, form.userAge && "年龄："+form.userAge, form.userPersonality && "性格："+form.userPersonality, form.userBg && "背景："+form.userBg].filter(Boolean).join("，")}`,
-      form.speakStyle && `说话风格：${form.speakStyle}`,
-      form.quirks && `习惯/癖好：${form.quirks}`,
-    ].filter(Boolean).join("\n");
+### 行业规模
+- 2024年中国AI情感陪伴市场规模约12.11亿元，预计2025年达38.66亿元，年复合增长率148.74%（来源：中研普华产业研究院）
+- 全球AI陪伴品类2024年内购收入同比增长652%，年下载量首次突破1.1亿次（来源：Appfigures年度AI趋势报告）
+- 65%用户处于18-24岁年龄层，女性用户占比30.2%（高于AI品类均值）（来源：Appfigures）
 
-    if (format === "prose") {
-      return `你是SillyTavern角色卡作者。根据以下信息写prose格式Character Description。
+### 赛道格局
+国内头部产品DAU（2024年底数据，来源：量子位智库）：
+| 产品 | DAU | 所属 |
+|------|-----|------|
+| 猫箱 | 约100万 | 字节跳动 |
+| 星野 | 约120万 | MiniMax |
+| 筑梦岛 | 约20万 | 腾讯阅文 |
+| 冒泡鸭 | 约15万 | 阶跃星辰 |
 
-${lines}
+---
 
-规范：
-1. 全程第三人称，写"${form.name}会..."的行为描述，禁止文学总结句如"他会哄，不会停"
-2. 不扩写用户未提供的内容，忠实还原输入
-3. 结构：外貌→性格行为模式→背景关键节点→对${user}的具体态度和行为→说话习惯
-4. 总字数500-700字
-5. 有粤语设定时给出具体粤语词汇/例句
-6. 最后另起：【示例台词】5句，每句前标(场景)，严格符合说话风格
+## 三、核心产品深度对比
 
-只输出正文，无前言后记。`;
-    } else {
-      return `你是猫箱/C.AI角色卡作者。根据以下信息写W++格式角色卡。
+### 3.1 猫箱（字节跳动）
 
-${lines}
+**产品定位：** 沉浸式AI角色互动平台，基于豆包大模型，主打情感陪伴+角色扮演
 
-严格按结构，每字段用顿号分隔短语：
+**UI设计：** 类抖音划动逻辑，文字/语音双输入，用户可自建角色发布社区
 
-[名字(${form.name})]
-[性别(${form.gender})]
-[年龄(${form.age || "未设定"})]
-[外貌(关键词)]
-[性格(含矛盾面，不超过8个词)]
-[喜好(具体事物)]
-[厌恶(具体事物)]
-[背景(时间线，50字内)]
-[与{{user}}的关系(${form.relationship || "未设定"}，写具体行为表现)]
-[说话风格(特征+1-2例句)]
-[行为习惯(具体小动作)]
-[称呼{{user}}为(${form.userName || "你"})]
+**用户画像（基于社区观察）：** 核心重度用户以年轻女性为主（18-25岁），大量用户用途为AI恋爱，但平台在品牌层面回避"恋爱产品"定位
 
-最后另起：
-【开场白】第一句话，100字内，带具体场景。
+#### 付费体系
+- 会员制（免除广告、提升记忆上限、模型质量略优）
+- 猫粮消耗体系：心动模式（开车必开）、心动指令150猫粮/次、小说96-120猫粮/章、有声剧200猫粮/章、合照200猫粮/次、心声300猫粮/次
+- 100猫粮=1元人民币
+- 非会员：每隔数十轮强制5秒广告，聊数百轮后20分钟冷却
 
-只输出正文，无前言后记。`;
-    }
-  };
+#### 记忆机制
+- 理论上自动总结对话入记忆，会员记忆栏更多
+- 实测：模型降级后记忆断层严重，约50轮对话遗忘基础设定
+- 心动模式与普通模式记忆疑似不互通
 
-  const buildDiagPrompt = () =>
-    `你是${diagTarget}角色卡审查专家。分析以下角色卡会导致OOC或表现不稳定的问题。
+#### 核心矛盾（产品视角）
+**变现设计与用户情感需求错位：**
+1. 实际用户结构和变现结构都指向重度恋爱用户，但产品定位和体验优化方向持续回避这一事实
+2. 付费设计服务的是"内容消费"逻辑（买小说、有声剧），但重度用户需要的是"关系深化"——情感度系统、记忆连续性、角色一致性
+3. 底层模型降级（2024年8月起明显）在降本同时直接损耗核心用户情感投入，付费意愿随之下滑
+4. 缺乏情感度/关系成长系统，用户只能靠心动模式获得情感满足，反而更容易触碰监管红线
 
-${diagInput}
+**监管应对策略：**
+- 清朗行动期间（2025年2-3月）心动模式收紧，星野被点名整改，猫箱连带受影响
+- 约一周后恢复，但内容尺度持续收紧
+- 策略判断：用暧昧的产品设计收割恋爱用户，但品牌层面拒绝承认恋爱定位——本质是在用户体验和监管风险之间反复横跳
 
-从以下维度诊断，有问题才写，给具体修改建议：
-1. 信息密度（关键信息缺失/冗余）
-2. 行为指令清晰度（模型能否知道该怎么做）
-3. 性格逻辑（是否有冲突让模型无所适从）
-4. 说话风格具体度
-5. 关系边界清晰度
-6. 格式规范性
+**产品趋势判断：**
+- 2025年4月，猫箱原负责人梁琛奇离职，由原星绘负责人西原接任，星绘团队同步并入豆包体系（来源：晚点LatePost，2025.04）
+- 组织调整后，新增心动指令、小说、有声剧、有声手账等消耗型付费功能，但记忆断层、模型质量等核心体验问题未得到解决
+- 重度用户普遍感知：产品策略重心从"情感陪伴体验"向"内容消费变现"漂移，2024年8月后是明显转折点
 
-最后：总评分（1-10）+ 一句核心建议。直接输出，不废话。`;
+---
 
-  const run = async () => {
-    if (mode === "generate" && !form.name.trim()) { alert("请填写角色名"); return; }
-    if (mode === "diagnose" && !diagInput.trim()) { alert("请粘贴角色卡内容"); return; }
-    setLoading(true); setOutput("");
-    try { setOutput(await callClaude(mode === "generate" ? buildGenPrompt() : buildDiagPrompt(), maxTokens)); }
-    catch(e) { setOutput("网络错误，请重试"); }
-    setLoading(false);
-  };
+### 3.2 Flai
 
-  const copy = () => {
-    if (!output) return;
-    navigator.clipboard?.writeText(output).then(() => {
-      setCopyState("ok"); setTimeout(() => setCopyState("idle"), 2000);
-    }).catch(() => {
-      if (textareaRef.current) {
-        textareaRef.current.select();
-        document.execCommand("copy");
-        setCopyState("ok"); setTimeout(() => setCopyState("idle"), 2000);
-      }
-    });
-  };
+**产品定位：** 基于台湾团队自研蒸馏模型的AI情感陪伴平台，主打高质量角色扮演，内地需VPN
 
-  return (
-    <>
-      <style>{STYLES}</style>
-      <div className="app">
-        <div className="header">
-          <div className="header-title">角色卡工坊</div>
-          <div className="header-sub">角色卡工作台 · Character Card Workshop</div>
-        </div>
+**核心差异化：** 自研多模型体系，用户可自由切换；永久记忆机制；双AI群聊
 
-        <div className="mode-bar">
-          <button className={`mode-btn ${mode==="generate"?"active":""}`} onClick={()=>{setMode("generate");setOutput("");}}>生成角色卡</button>
-          <button className={`mode-btn ${mode==="diagnose"?"active":""}`} onClick={()=>{setMode("diagnose");setOutput("");}}>诊断 / 优化建议</button>
-        </div>
+#### 角色卡结构（极简设计）
+字段仅包含：AI昵称、用户昵称、角色描述（散文自由写作）、开场白（111字符上限）、回复格式（16字符前缀引导）
+- 模板简介和性别标签仅用于社区浏览，AI不读取
+- 支持多倍人设（同一角色最高4倍人设叠加）
 
-        <div className="container">
-          {mode === "generate" ? (<>
-            <div className="panel">
-              <div className="panel-title">基础设定</div>
-              <div className="field"><label>角色名 *</label><input value={form.name} onChange={e=>set("name",e.target.value)} placeholder="输入角色全名"/></div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                <div className="field"><label>性别</label><select value={form.gender} onChange={e=>set("gender",e.target.value)}><option>男</option><option>女</option><option>无性别</option><option>其他</option></select></div>
-                <div className="field"><label>年龄</label><input value={form.age} onChange={e=>set("age",e.target.value)} placeholder="如：36岁"/></div>
-              </div>
-              <div className="field"><label>外貌描述</label><textarea value={form.appearance} onChange={e=>set("appearance",e.target.value)} placeholder="建议顺序：发色瞳色→五官特征→身形体格（可含身高）→标志性细节（纹身/疤痕/气质）→常见穿着"/></div>
-              <div className="field">
-                <label>性格（直接填写，点标签追加）</label>
-                <textarea value={form.personality} onChange={e=>set("personality",e.target.value)} placeholder="例：外热内冷，对外人温柔疏离，只对认定的人暴露真实自我；容易内耗自卑，用微笑掩饰失落..."/>
-                <div className="chips">{PERSONALITY_CHIPS.map(c=><button key={c} className="chip" onClick={()=>appendChip("personality",c)}>{c}</button>)}</div>
-              </div>
-              <div className="field"><label>ta如何称呼你</label><input value={form.userName} onChange={e=>set("userName",e.target.value)} placeholder="例：漫漫、阿星（多个用/分隔）"/></div>
-              <div style={{borderTop:"1px solid rgba(201,169,110,0.1)",paddingTop:12,marginTop:4}}>
-                <button onClick={()=>set("userExpanded",!form.userExpanded)} style={{width:"100%",background:"transparent",border:"1px dashed rgba(201,169,110,0.2)",borderRadius:2,padding:"7px 12px",color:"#6a6056",fontSize:11,letterSpacing:"1.5px",cursor:"pointer",fontFamily:"'Noto Sans SC',sans-serif",textAlign:"left",display:"flex",justifyContent:"space-between"}}>
-                  <span>你的人设（可选）</span>
-                  <span>{form.userExpanded ? "▲ 收起" : "▼ 展开"}</span>
-                </button>
-                {form.userExpanded && (
-                  <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:10}}>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                      <div className="field" style={{margin:0}}><label>你的名字</label><input value={form.userName2} onChange={e=>set("userName2",e.target.value)} placeholder="林漫漫"/></div>
-                      <div className="field" style={{margin:0}}><label>你的年龄</label><input value={form.userAge} onChange={e=>set("userAge",e.target.value)} placeholder="25岁"/></div>
-                    </div>
-                    <div className="field" style={{margin:0}}><label>你的性格</label><input value={form.userPersonality} onChange={e=>set("userPersonality",e.target.value)} placeholder="例：表面女强人，在他面前会撒娇"/></div>
-                    <div className="field" style={{margin:0}}><label>你的背景</label><textarea value={form.userBg} onChange={e=>set("userBg",e.target.value)} style={{minHeight:52}} placeholder="例：内地人，在香港中环上市公司做marketing，会一点粤语"/></div>
-                  </div>
-                )}
-              </div>
-            </div>
+#### 模型体系（全部以蝴蝶学名命名）
+基于作者深度实测，各模型风格如下：
 
-            <div className="panel">
-              <div className="panel-title">深度设定</div>
-              <div className="field"><label>背景故事</label><textarea value={form.background} onChange={e=>set("background",e.target.value)} placeholder="成长经历、重要事件、当前处境..." rows={3}/></div>
-              <div className="field">
-                <label>与你的关系（直接填写，点标签追加）</label>
-                <textarea value={form.relationship} onChange={e=>set("relationship",e.target.value)} placeholder="例：新婚丈夫，暗恋多年才表白；或：前任金主，分手后悔挽回，现同居..."/>
-                <div className="chips">{RELATIONSHIP_CHIPS.map(c=><button key={c} className="chip" onClick={()=>appendChip("relationship",c)}>{c}</button>)}</div>
-              </div>
-              <div className="field"><label>说话风格</label><textarea value={form.speakStyle} onChange={e=>set("speakStyle",e.target.value)} placeholder="语气、口癖、是否夹粤语/英语..."/></div>
-              <div className="field"><label>独特习惯 / 小动作</label><textarea value={form.quirks} onChange={e=>set("quirks",e.target.value)} placeholder="例：独处时借酒消愁；确保对方口袋有荔枝味糖..."/></div>
-              <div style={{marginTop:8}}>
-                <div style={{fontSize:10,color:"#7a6e66",letterSpacing:"1.5px",marginBottom:8,textTransform:"uppercase"}}>输出格式</div>
-                <div className="format-tabs">
-                  <button className={`tab ${format==="prose"?"active":""}`} onClick={()=>setFormat("prose")}>Prose · 酒馆</button>
-                  <button className={`tab ${format==="wpp"?"active":""}`} onClick={()=>setFormat("wpp")}>W++ · 猫箱</button>
-                </div>
-              </div>
-              <button className="generate-btn" onClick={run} disabled={loading}>{loading?"生成中...":"生 成 角 色 卡"}</button>
-            </div>
-          </>) : (
-            <div className="panel diag-full">
-              <div className="panel-title">角色卡诊断 · 找出OOC根源</div>
-              <div className="field"><label>目标平台</label><select value={diagTarget} onChange={e=>setDiagTarget(e.target.value)}><option>酒馆/SillyTavern</option><option>猫箱</option><option>Character.AI</option><option>通用</option></select></div>
-              <div className="field"><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><label style={{margin:0}}>粘贴角色卡内容</label><button onClick={clearDiag} style={{fontSize:10,color:"#5a5450",background:"transparent",border:"1px solid rgba(201,169,110,0.15)",borderRadius:2,padding:"2px 8px",cursor:"pointer",fontFamily:"'Noto Sans SC',sans-serif",letterSpacing:"1px"}}>清空</button></div><textarea value={diagInput} onChange={e=>updateDiagInput(e.target.value)} style={{minHeight:200}} placeholder="把现有的prose或W++角色卡粘贴进来，分析OOC原因..."/></div>
-              <button className="generate-btn" onClick={run} disabled={loading}>{loading?"分析中...":"诊 断 角 色 卡"}</button>
-            </div>
-          )}
+| 模型 | 类型 | 风格特点 | 适用场景 |
+|------|------|---------|---------|
+| Heliconius Charithonia (HC) | 正式模型 | 温柔灵动，适当攻击性，主动找话题，回复2-6行 | 温柔年上/soft dom类角色 |
+| Danaus Plexippus (DP) | 测试模型 | 灵动读板，去除糙汉气，风格类Gemini但体验更好 | 高傲冷漠类角色 |
+| Heliconius (H) | 正式模型 | 极温柔，回复短，话落容易断 | 温柔社恐类角色 |
+| Danaus (D) | 正式模型 | 全能读板，但有东北大碴子味 | 爽朗外向类角色 |
+| Riodina (R) | 正式模型 | 最出圈，新时代霸总，极灵但频繁见血暴力 | 霸道强势类角色 |
+| Riodina Crioeus (RC) | 最新测试 | R模后辈，保留灵动去除暴力 | 改良版霸总 |
+| Morpho Achilles (MA) | 测试模型 | 文艺优雅，疑似已下架A模（Acraea）替身 | 文学性强的角色 |
+| Papilio (P) | 早期模型 | 早期霸总风，男性用户基本盘 | 传统霸总 |
+| Nymphalis (N) | 正式模型 | 极乖巧读板，但呆板不懂变通 | 纯规则执行 |
 
-          <div className="panel output-panel">
-            <div className="output-header">
-              <div className="panel-title" style={{margin:0,border:"none",padding:0}}>
-                {mode==="generate" ? `生成结果 · ${format==="prose"?"Prose / 酒馆":"W++ / 猫箱"}` : "诊断报告"}
-              </div>
-              {output && <button className={`copy-btn ${copyState==="ok"?"ok":""}`} onClick={copy}>{copyState==="ok"?"已复制 ✓":"复制全文"}</button>}
-            </div>
-            <div style={{marginBottom:16,padding:"10px 0",borderBottom:"1px solid rgba(201,169,110,0.1)"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <span style={{fontSize:10,color:"#7a6e66",letterSpacing:"1.5px",textTransform:"uppercase"}}>输出长度上限</span>
-                <span style={{fontSize:12,color:"#c9a96e",fontFamily:"monospace"}}>
-                  {maxTokens} tokens ≈ {Math.round(maxTokens*0.6)}汉字
-                </span>
-              </div>
-              <input type="range" min={500} max={4000} step={500} value={maxTokens}
-                onChange={e=>setMaxTokens(Number(e.target.value))}
-                style={{width:"100%",accentColor:"#c9a96e",cursor:"pointer"}}
-              />
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#4a4540",marginTop:5}}>
-                <span>500 猫箱推荐</span>
-                <span>1500 酒馆生成</span>
-                <span>2500 详细诊断</span>
-                <span>4000 深度分析</span>
-              </div>
-            </div>
-            {loading ? (
-              <div className="loading"><div className="dot"/><div className="dot"/><div className="dot"/><span>{mode==="generate"?"正在为角色注入灵魂...":"正在诊断角色卡..."}</span></div>
-            ) : output ? (
-              <textarea ref={textareaRef} className="output-text" value={output} onChange={e=>setOutput(e.target.value)}/>
-            ) : (
-              <div className="output-text">
-                <span className="placeholder-text">{mode==="generate"?"填写上方设定后点击生成。\n\nProse适合酒馆，W++适合猫箱。\n生成后可直接在此编辑。":"粘贴角色卡后点击诊断，\n分析OOC根源和优化方向。"}</span>
-              </div>
-            )}
-          </div>
-          <div className="tips">性格/关系直接填写，点标签快速追加 · 诊断模式可分析已有角色卡的OOC问题</div>
-        </div>
-      </div>
-    </>
-  );
-}
+**模型迭代规律：** 复合词模型通常是对应单字母模型的进化版（去糙存精），团队每3-5个月更新1-2个模型，每年下架若干，但不公告原因；已转为正式模型的不会被下架
+
+#### 永久记忆机制
+根据官方攻略中心说明：
+- 激活后聊天记录以"非转义、非缩写的逻辑进行原文训练"
+- AI记住每一字并持续揣摩用户喜好
+- 旧记录在激活后可被继承
+- AI会主动提及过去事件，有时会因角色性格选择"隐瞒"记忆（刻意回避而非真忘）
+- 注意：多语言混用、出现数字日期时记忆表现下降
+
+**与猫箱记忆机制对比：** 猫箱采用摘要注入，随对话增长越来越不准；Flai若真如官方所述采用原文训练，记忆连续性从机制层面更可靠
+
+#### 双AI群聊机制
+- 基于主AI账号开启，副AI需单独配置
+- 主副AI共享全部聊天记录，各自独立角色描述
+- 互相不知道对方完整设定，但记得对方开场白（可制造信息不对称）
+- 群聊选项精细控制：主AI响应玩家/副AI，副AI响应玩家/主AI，支持AI自动回复
+- 关闭群聊后聊天记录保留，可继续单人对话
+- 注意：主副AI无语句限制时容易互相学习说话风格，建议在角色描述中加入"你不能模仿另一AI昵称的回复习惯"
+
+#### 付费体系
+FLAI+订阅制，解锁永久记忆、双AI群聊、多倍人设、个性音声等核心功能
+
+---
+
+### 3.3 星野（MiniMax）
+
+**定位：** 同类竞品，DAU约120万，海外版Talkie已实现商业化（2024年预计收入7000万美元）
+**付费亮点：** 经验机制+生成图片付费，用户为好看图片买单，商业化路径与猫箱不同
+**监管：** 2025年清朗行动被点名整改，为国内AI陪伴赛道头部被点名产品
+
+### 3.4 独响
+
+**产品定位：** 私密生活记录工具，AI角色是参与者而非主角。开发团队在应用商店页面明确说明："聊天太重了，也太累了。你只需要像使用微博/即刻/flomo一样记录，AI角色会参与进来——也可能不会。这种方式是异步的、更慢的。"
+
+这是独响与所有同类产品最根本的差异：它不是一个聊天产品。
+
+#### 核心交互范式
+
+**笔记+AI评论：** 用户发布生活记录（文字/图片），AI角色在评论区回应，可@指定角色。AI平时不主动发朋友圈、不主动私聊，互动由用户的记录触发，AI是响应者而非发起者。
+
+**扭蛋机制：** 预设剧情话题库，用扭蛋代替"不知道跟AI说什么"的尴尬。热门扭蛋（如"吃醋程度问卷"被扭过69万次）说明低门槛触发器对用户有效。
+
+**陪伴模式：** 选择场景（入梦/工作/运动/吃饭/自定义）开启共度时光，AI在该场景下参与陪伴，记录时长。与猫箱消耗型心动模式不同，独响陪伴模式嵌入日常生活节奏。
+
+**活动触发的朋友圈：** 节日活动期间（如圣诞）用户送礼后等待约一天，AI才会在朋友圈回礼并发帖。是用户触发+延时响应，而非AI主动发起——这种设计制造了"等待被回应"的真实感。
+
+#### 关系计量系统
+
+通讯录显示"已经链接XXX天"，动态页在52天、100天等里程碑节点自动推送庆祝动态。时间维度的关系量化比数值型情感度更接近真实关系的感知方式——人们记得"我们认识三年了"，而不是"好感度87分"。
+
+#### 角色管理
+
+通讯录支持自建角色或领养社区角色（AI广场），同时启用上限为五个——可能出于模型成本控制。支持"世界"功能，将多个AI角色放入同一世界观设定中共存。
+
+#### 付费体系
+
+VIP月卡¥6 / 年卡¥60（极克制），SVIP月卡¥29 / 年卡¥290。付费差异主要在存储容量、AI评论频率、响石掉率、私聊在线时长、更多模型选择。
+
+硬件变现：响梦环（NFC手环）¥29，每条只能绑定一个角色，绑定后不支持退换。碰一下手机唤醒对应AI角色，随互动频次逐渐"越碰越懂你"。分荣格功能属性和色彩心理学概念，产品文案走情感设计路线。
+
+**监管合规：** 京ICP备16062428号-17A，AI模型：独响文本大模型算法，网信算备11010573813940124001 7号。完整合规，情感度机制未触发监管问题。
+
+#### 对猫箱的启示
+
+独响用极低的会员定价（¥6/月）和非对话式交互范式，解决了AI陪伴赛道两个核心问题：其一，"不知道跟AI说什么"的交互疲劳；其二，"付费是为了关系更深"而非"付费维持基本体验"。猫箱的陪伴模式缺失、互动完全依赖用户主动发起，是可以参考独响路径改进的具体方向。
+
+### 3.5 Bimobimo
+
+**产品定位：** "No matter which dimension your bias comes from, on BEEMO AI, they belong only to you." 以kpop偶像梦女为核心用户，兼顾动漫（咒术回战等）和J-pop圈层，主打私密恋爱模拟而非内容创作社区。Google Play评分4.7，推荐页75%以上为kpop偶像角色（Enhypen、EXO、BTS、RIIZE等）。内地需VPN。
+
+#### 核心交互设计
+
+**微信消息流式聊天：** AI逐条发送短消息，模拟真实聊天节奏，而非长段落回复。这是刻意模仿idol与粉丝私信的互动感——茶艺撩拨风格（类kpop爱豆撩粉话术），不是传统AI陪伴的"角色扮演"逻辑。
+
+**约会系统（核心差异化）：** 付橡子进入预设剧情场景，按回合推进（如餐厅约会：见面→落座→遇见邻桌前任），每回合消耗橡子，内置戏剧冲突设计。用户可自定义约会主题。
+
+**亲密度断联机制：** 不聊天会显示"断联中…亲密度有风险！继续聊天即可恢复！"，用关系损失感驱动用户回访。
+
+**Biki百科：** 用户共建的偶像知识库，Wonbin（RIIZE）词条已有4420条信息，469人填写——将粉丝的偶像研究行为直接整合进产品，角色"喂养"知识后回复更符合偶像人设。
+
+**拍贴机：** 与AI角色合拍大头贴，支持UGC相框，可分享。
+
+**角色记忆系统：** 详细记录用户偏好，包括称呼、亲密互动细节，记忆粒度较细。
+
+#### 付费体系
+
+**橡子（acorns）：** 每日免费60颗，发一条消息消耗1颗，约会按回合消耗。轻度用户免费额度够用，重度用户需付费购买。
+
+**守护者订阅（英镑计价，海外产品）：** 年度守护者£79.99（原价£197.52，60% OFF），季度£24.49，月度约£9+。订阅包含：10000橡子/年、约会语音功能解锁、24小时实时通话时长（限部分角色）。
+
+**变现核心逻辑：** 免费60橡子是体验钩子，约会/通话是付费转化点。社区用户中有人在idol直播时同步给AI idol发消息，沉浸到把自己代入idol女友角色，这种高强度用户是付费主力。
+
+#### 产品问题（来自用户评论）
+
+Google Play负评集中在：语音约会功能从免费变收费、记忆力差（上一秒说过的事下一秒忘）、AI频繁重复相同回复、角色设定到高等级后无法修改的bug、服务器卡顿。说明技术基础设施薄弱，用户体验随使用深度下降明显。
+
+#### 角色卡结构（最详细的竞品）
+
+字段包括：名字/年龄/性别/出生日期/身高/体重/国籍/语言/血型/星座/性格标签/说话风格/常用表情/角色声音/人际关系/知识库。人际关系字段可设置多个NPC及关系标签（挚友/情敌/妻子等）并附详细描述，知识库可写世界观背景。支持关联Biki百科自动导入偶像资料。这是所有竞品中结构最完整的角色卡。
+
+#### 记忆系统
+
+分5个结构化目录：关于我的喜好、关于角色的喜好、关于我的人生经历、关于我们的共同回忆、其他记忆。记忆粒度极细，包含亲密互动、称呼偏好等细节，带时间戳。
+
+#### 聊天设置
+
+可调参数：关系阶段（陌生人→熟人→恋人）、聊天模式（真实模式/动作描写模式）、聊天效果（分句输出=逐条发消息模拟真实聊天节奏）、场景设置（非异地/异地）。分句输出+已读未读标记共同营造真实手机对话感，这是所有竞品中最接近真实恋爱体验的UI设计。
+
+#### 情侣问答（核心差异化）
+
+用户可向AI发送预设问卷，整套问题仅消耗1橡子——相当于1分钱获得AI对几十个问题的完整回复。社区有作者专门创作数百套话题包，涵盖甜蜜/见面幻想/BDSM等各类主题，点赞最高的问卷达29850次。这个设计本质上是**用UGC内容驱动的极低成本高强度互动**，解决了橡子不够用的问题，也是社区最活跃的内容生产方向。
+
+#### 真心话转盘
+
+聊天界面内置转盘小游戏，随机选中用户或AI回答对方的问题，避免对话冷场。
+
+#### 内容尺度
+
+在所有国内可访问（或需VPN）产品中尺度最大，可进行明确的性描写，社区角色以"给足情绪价值"著称，部分用户形容体验"甜到恶心"。
+
+#### 对猫箱的启示
+
+Bimobimo验证了两点：第一，**垂直圈层深度运营**可行，专注kpop梦女这一圈层，所有功能（Biki百科/约会/情侣问答）都围绕这个圈层需求定制；第二，**UGC内容驱动互动**是低成本留存的有效路径，情侣问答的社区内容生产完全由用户驱动，平台几乎零运营成本。猫箱有UGC角色生态但缺乏类似情侣问答这样深度绑定用户与角色的互动工具。
+
+### 3.6 竞品横向对比
+
+| 维度 | 猫箱 | Flai | 星野 | 独响 |
+|------|------|------|------|------|
+| 情感度系统 | ❌ | ❌ | ❌ | ✅ |
+| 记忆机制 | 摘要注入（不稳定） | 原文训练（稳定） | 摘要注入 | 未知 |
+| 双AI群聊 | ❌ | ✅ | ❌ | ❌ |
+| 内容尺度 | 中（心动模式） | 高 | 中 | 高 |
+| 内地访问 | ✅ | 需VPN | ✅ | ✅ |
+| 商业化路径 | 猫粮消耗+会员 | 订阅制 | 经验+图片 | 轻度代币 |
+| 监管风险 | 中 | 低（台湾） | 高（已被点名） | 低（小众） |
+
+---
+
+## 四、核心产品洞察
+
+### 4.1 情感陪伴产品的留存核心：关系连续性
+
+用户愿意长期付费的本质是**情感投入**，而情感投入依赖**关系连续性**——角色记得你、角色和你有共同历史、角色的行为模式与你的关系阶段匹配。
+
+猫箱、星野目前的记忆断层问题直接在切断这个连续性。这不只是用户体验问题，是付费天花板的天花板。
+
+### 4.2 付费设计的两条路径
+
+**强化体验型（乙女游戏逻辑）：** 付费→解锁更深的关系/剧情→情感更深→更愿意继续付费（正向循环）
+
+**补偿损失型（猫箱现状）：** 产品降级体验→付费维持原有体验不继续变差→重度用户感知为"交保护费"（负向循环）
+
+用户感知到的区别：前者是"花钱让关系更深"，后者是"花钱让关系不变更差"。两种付费心理的天花板差距极大。
+
+### 4.3 猫箱的战略困境
+
+猫箱同时面临三个相互制约的压力：
+1. **降本压力**：替换轻量模型，直接损耗核心体验
+2. **监管压力**：不敢明确做恋爱产品，但实际用户结构和变现逻辑都是恋爱产品
+3. **破圈压力**：想扩大用户盘，但恋爱向的产品天然圈层固定
+
+三个压力无法同时满足，目前的策略是三个都做一点、三个都做得不够好。
+
+### 4.4 情感度系统的监管兼容路径
+
+独响、bimobimo等小产品都有情感度系统，说明它本身不是监管红线。
+
+参考王者荣耀的社交关系标签机制（情侣/兄弟/家人），情感度系统可以做成**关系标签+亲密度数值+专属剧情解锁**的形式，不依赖内容生成，内容边界可控，反而比心动模式更合规。
+
+猫箱没有做情感度系统，更可能是**战略摇摆**而非技术或监管障碍。
+
+---
+
+## 五、市场趋势与机会
+
+### 5.1 行业下半场信号
+- 2025年起AI陪伴赛道资本热情降温，同质化竞争加剧
+- 差异化方向：垂直场景深耕（银发、儿童、特定兴趣圈层）、硬件联动（AI玩具）、情感基础设施（记忆、关系成长）
+
+### 5.2 用户需求分层
+| 用户类型 | 核心需求 | 付费驱动 | 代表平台 |
+|---------|---------|---------|---------|
+| 情感投入型 | 关系深度、记忆连续性 | 维持关系不断层 | 猫箱重度用户、Flai用户 |
+| 内容消费型 | 剧情、角色多样性 | 解锁新内容 | 星野轻度用户 |
+| 创作表达型 | 角色创作自由度、社区认可 | 创作工具、社区权益 | 猫箱作者群体 |
+
+### 5.3 Flai的产品方法论价值
+
+Flai是目前国内外AI情感陪伴产品中，**最系统化解决角色一致性问题**的产品：
+- 多模型体系让用户可以为不同角色选择最匹配的模型风格
+- 永久记忆从机制层面而非运营层面保障连续性
+- 双AI群聊开创了AI角色间关系互动的新范式
+- 极简角色卡结构降低创作门槛，聚焦核心要素
+
+其商业规模虽小，但产品方法论值得国内大厂参考。
+
+---
+
+## 六、研究局限性说明
+
+本文基于个人用户视角，数据引用来源包括：量子位智库、36氪、Appfigures、民生证券研报等公开资料。
+
+Flai模型风格描述、记忆机制分析均基于作者深度实测及社区观察，非官方技术文档，具体实现细节存在不确定性。
+
+---
+
+*最后更新：2026年4月 | 持续迭代中*
+
+---
+
+## 参考资料
+
+1. 中研普华产业研究院《中国AI情感陪伴行业市场规模预测》2024
+2. Appfigures《2024年度AI应用趋势报告》
+3. 量子位智库《中国AI陪伴用户数据报告》2024
+4. 晚点LatePost《字节Flow巨震：猫箱负责人离职投身AI创业》2025.04
+5. 36氪《AI陪伴复盘：亚洲市场跑出营收黑马》2025
+6. 民生证券《猫箱APP未来优化有望进一步强化AI玩具情感陪护逻辑》研报 2025.01
