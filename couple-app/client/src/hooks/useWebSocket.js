@@ -6,7 +6,7 @@ const WS_URL = (() => {
   return `${proto}://${host}`;
 })();
 
-export function useWebSocket(userId, onMessage) {
+export function useWebSocket(token, onMessage) {
   const wsRef = useRef(null);
   const reconnectTimer = useRef(null);
   const pingTimer = useRef(null);
@@ -15,7 +15,7 @@ export function useWebSocket(userId, onMessage) {
   onMessageRef.current = onMessage;
 
   const connect = useCallback(() => {
-    if (!userId) return;
+    if (!token) return;
     if (wsRef.current && wsRef.current.readyState < 2) return;
 
     const ws = new WebSocket(WS_URL);
@@ -23,7 +23,8 @@ export function useWebSocket(userId, onMessage) {
 
     ws.onopen = () => {
       setConnected(true);
-      ws.send(JSON.stringify({ type: 'auth', userId }));
+      // Authenticate with JWT (not userId)
+      ws.send(JSON.stringify({ type: 'auth', token }));
       pingTimer.current = setInterval(() => {
         if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'ping' }));
       }, 25000);
@@ -32,7 +33,12 @@ export function useWebSocket(userId, onMessage) {
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
-        if (msg.type !== 'pong') onMessageRef.current(msg);
+        if (msg.type === 'error') {
+          // Token invalid — force re-login
+          console.error('[WS] Server error:', msg.message);
+        } else if (msg.type !== 'pong') {
+          onMessageRef.current(msg);
+        }
       } catch {}
     };
 
@@ -43,7 +49,7 @@ export function useWebSocket(userId, onMessage) {
     };
 
     ws.onerror = () => ws.close();
-  }, [userId]);
+  }, [token]);
 
   useEffect(() => {
     connect();

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CoupleTracker" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <item name="colorPrimary">#e879a4</item>
+        <item name="colorPrimaryVariant">#be185d</item>
+        <item name="colorOnPrimary">#ffffff</item>
+        <item name="colorSecondary">#a78bfa</item>
+        <item name="colorOnSecondary">#ffffff</item>
+        <item name="android:statusBarColor">#0f0a1a</item>
+        <item name="android:navigationBarColor">#0f0a1a</item>
+        <item name="android:windowBackground">#0f0a1a</item>
+    </style>
+</resources>

@@ -27,7 +27,7 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error || '连接失败');
       } else {
-        login(data.userId, data.name);
+        login(data.userId, data.name, data.token);
       }
     } catch {
       setError('无法连接服务器，请检查网络');
@@ -41,7 +41,6 @@ export default function LoginPage() {
       <Particles />
 
       <div className="relative z-10 w-full max-w-sm slide-up">
-        {/* Heart logo */}
         <div className="text-center mb-8">
           <div className="text-6xl heartbeat inline-block mb-4">💕</div>
           <h1 className="text-2xl font-semibold glow-text">只属于我们的世界</h1>
@@ -73,15 +72,12 @@ export default function LoginPage() {
               </label>
               <input
                 className="input-field"
-                type="text"
+                type="password"
                 placeholder="输入我们的专属密码..."
                 value={code}
-                onChange={e => setCode(e.target.value.toUpperCase())}
-                maxLength={30}
+                onChange={e => setCode(e.target.value)}
+                maxLength={50}
               />
-              <p className="text-xs mt-1.5" style={{ color: '#6b5a84' }}>
-                默认配对码：LOVEBIRDS（可在服务器设置中修改）
-              </p>
             </div>
 
             {error && (
@@ -91,18 +87,14 @@ export default function LoginPage() {
               </p>
             )}
 
-            <button
-              type="submit"
-              className="btn-primary mt-2"
-              disabled={loading}
-            >
+            <button type="submit" className="btn-primary mt-2" disabled={loading}>
               {loading ? '连接中...' : '进入我们的世界 ✨'}
             </button>
           </form>
         </div>
 
         <p className="text-center text-xs mt-6" style={{ color: '#4d3870' }}>
-          仅你们二人可进入 · 端对端私密
+          仅你们二人可进入 · JWT 加密保护
         </p>
       </div>
     </div>

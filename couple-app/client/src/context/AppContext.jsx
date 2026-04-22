@@ -3,30 +3,29 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [userId, setUserId] = useState(() => localStorage.getItem('userId'));
-  const [myName, setMyName] = useState(() => localStorage.getItem('myName'));
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    () => !!(localStorage.getItem('userId') && localStorage.getItem('myName'))
-  );
+  const [userId,  setUserId]  = useState(() => localStorage.getItem('userId'));
+  const [myName,  setMyName]  = useState(() => localStorage.getItem('myName'));
+  const [token,   setToken]   = useState(() => localStorage.getItem('token'));
+  const isAuthenticated = !!(userId && myName && token);
 
-  const login = useCallback((uid, name) => {
+  const login = useCallback((uid, name, jwt) => {
     localStorage.setItem('userId', uid);
     localStorage.setItem('myName', name);
+    localStorage.setItem('token', jwt);
     setUserId(uid);
     setMyName(name);
-    setIsAuthenticated(true);
+    setToken(jwt);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('userId');
-    localStorage.removeItem('myName');
+    ['userId', 'myName', 'token'].forEach(k => localStorage.removeItem(k));
     setUserId(null);
     setMyName(null);
-    setIsAuthenticated(false);
+    setToken(null);
   }, []);
 
   return (
-    <AppContext.Provider value={{ userId, myName, isAuthenticated, login, logout }}>
+    <AppContext.Provider value={{ userId, myName, token, isAuthenticated, login, logout }}>
       {children}
     </AppContext.Provider>
   );

@@ -1,110 +1,150 @@
 # 💕 只属于我们的世界
 
-一个私密的双人 App，专为你们两人设计。打开即可看到对方正在用什么 App、从几点开始用、停留了多久。
+一个私密的双人 App，专为你们两人设计。**Android 端自动读取当前使用的应用**，无需手动记录——对方打开什么 App、几点开始、用了多久，实时可见。
 
 ---
 
-## 功能特性
+## 工作原理
 
-- **实时活动同步**：通过 WebSocket 实时推送，对方打开/关闭 App 第一时间可见
-- **活动时间线**：按时间顺序展示今日的所有应用使用记录（应用名、开始时间、结束时间、停留时长）
-- **在线状态**：绿点显示对方是否在线，离线时显示"X 分钟前离线"
-- **40+ 常用 App 图标**：微信、微博、抖音、原神、猫箱等常用 App 自动匹配 emoji 图标
-- **自定义 App 名称**：手动输入任意 App 名记录
-- **浪漫暗紫色 UI**：专为私密二人空间设计的视觉风格
-- **配对码保护**：只有知道配对码才能进入，完全私密
+```
+你的手机（Android App）
+    └─ UsageStatsManager 每3秒读取前台应用
+    └─ 应用切换时 → POST /api/activity/start（含 JWT Token）
+           ↓
+    你们的服务器（Node.js）
+           ↓ WebSocket 广播
+    TA 的手机（浏览器 / Android App）
+    └─ 实时显示你打开了什么、用了多久
+```
+
+**数据流完全在你们自己的服务器上，不经过任何第三方。**
 
 ---
 
-## 快速启动（推荐：Docker）
+## 安全架构
+
+| 层 | 机制 |
+|---|---|
+| 身份认证 | JWT（HS256，30天有效期），配对码只用一次换 Token |
+| 传输 | HTTPS/WSS（建议用 Nginx 反向代理加 TLS） |
+| 限流 | 配对接口 5次/分钟，API 30次/分钟（防暴力破解） |
+| 请求大小 | Body 硬限制 10KB |
+| 安全头 | Helmet.js（XSS、MIME 嗅探等防护） |
+| 房间隔离 | 最多2人，第3人无法加入 |
+| 数据隔离 | Android App SharedPreferences 私有模式，Token 不可被其他应用读取 |
+
+**Android 端只读取「当前前台应用名称」，不读取：屏幕内容、键盘输入、位置、联系人、照片。**
+
+---
+
+## 部署服务器
+
+### Docker（推荐）
 
 ```bash
 cd couple-app
-# 修改配对码（可选）
-PAIR_CODE=你们的专属密码 docker-compose up -d
+
+# 生成一个随机 JWT 密钥
+JWT_SECRET=$(openssl rand -hex 32)
+echo "JWT_SECRET=$JWT_SECRET"  # 保存好这个值
+
+# 启动
+PAIR_CODE=你们的专属密码 JWT_SECRET=$JWT_SECRET docker-compose up -d
 ```
 
 访问 `http://你的服务器IP:3001`
 
----
-
-## 本地开发
-
-**需要 Node.js 18+**
+### 直接运行
 
 ```bash
-cd couple-app
+cd couple-app/client && npm install && npm run build
+cd ../server && npm install
 
-# 安装依赖
-cd server && npm install && cd ..
-cd client && npm install && cd ..
+PAIR_CODE=你们的密码 JWT_SECRET=随机长字符串 node index.js
+```
 
-# 启动后端（终端1）
-cd server && node index.js
+### 加 HTTPS（强烈建议）
 
-# 启动前端（终端2，仅开发模式需要）
-cd client && npm run dev
+用 Nginx 反向代理 + Let's Encrypt 证书：
 
-# 访问 http://localhost:5173（开发）或 http://localhost:3001（生产）
+```nginx
+server {
+    listen 443 ssl;
+    server_name love.yourname.com;
+
+    ssl_certificate     /etc/letsencrypt/live/love.yourname.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/love.yourname.com/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";  # 支持 WebSocket
+        proxy_set_header Host $host;
+    }
+}
 ```
 
 ---
 
-## 生产部署
+## 配置 Android App
 
-```bash
-# 构建前端
-cd client && npm run build
+### 编译
 
-# 启动服务器（前端已嵌入）
-cd ../server && node index.js
-# 访问 http://localhost:3001
-```
+1. 用 Android Studio 打开 `couple-app/android-app/`
+2. `Build → Generate Signed APK` → 安装到手机
 
----
+### 首次配置（2分钟）
 
-## 使用方法
+1. 打开 App → 点「前往授权设置」
+2. 找到「只属于我们」→ 开启「使用情况访问」权限
+3. 回到 App，填入：
+   - **服务器地址**：`https://love.yourname.com`（或 `http://IP:3001`）
+   - **Token**：在网页端登录后，点「Android 自动追踪 → 查看配置步骤 → 复制 Token」
+4. 点「保存并启动追踪」
 
-1. **两人都访问同一个网址**
-2. **各自输入自己的名字 + 配对码**（默认 `LOVEBIRDS`）
-3. **点击"记录我正在用的 App"** → 从常用列表选择或手动输入
-4. 对方的界面会**实时更新**，显示你打开了什么 App
-5. 点击"管理"按钮关闭 App，记录自动计算停留时长
+之后每次切换应用，对方 3 秒内可见。开机自动启动。
 
 ---
 
-## 修改配对码
+## 使用方式
 
-**Docker：**
-
-```bash
-PAIR_CODE=OURCODE123 docker-compose up -d
-```
-
-**直接运行：**
-
-```bash
-PAIR_CODE=OURCODE123 node index.js
-```
+| 场景 | 操作 |
+|---|---|
+| 自动模式（推荐） | 安装 Android App，一次性授权后全自动 |
+| 手动记录 | 在网页端点「手动记录正在用的 App」 |
+| 查看对方 | 打开网页，实时看到对方的活动状态和时间线 |
+| 通知 | 对方上线/打开新 App 时，网页端弹出提示 |
 
 ---
 
 ## 技术架构
 
-| 层 | 技术 |
-|---|---|
-| 前端 | React 18 + Vite + Tailwind CSS |
-| 后端 | Node.js + Express + ws（WebSocket） |
-| 通信 | WebSocket 全双工实时推送 |
-| 数据 | 内存存储（重启后重置） |
-| 部署 | Docker / 直接 Node |
-
-> **注意**：数据存储在内存中，服务器重启后会重置。如需持久化，可将 `users` 和 `activities` Map 替换为 SQLite 等轻量数据库。
+```
+couple-app/
+├── server/                   # Node.js 后端
+│   └── index.js              # Express + WebSocket + JWT + 限流
+├── client/                   # React 18 前端
+│   └── src/
+│       ├── pages/            # LoginPage, Dashboard
+│       ├── components/       # UserCard, ActivityTimeline, LogActivityModal
+│       ├── hooks/            # useWebSocket（自动重连）
+│       └── context/          # AppContext（JWT 持久化）
+├── android-app/              # Android 原生 App
+│   └── app/src/main/
+│       ├── service/          # TrackerService（后台轮询）+ BootReceiver
+│       ├── ui/               # SetupActivity（配置界面）
+│       ├── api/              # ApiClient（JWT HTTP 请求）
+│       └── util/             # AppNameResolver + Prefs
+├── Dockerfile
+└── docker-compose.yml
+```
 
 ---
 
 ## 隐私说明
 
-- 没有第三方服务，数据完全在你们的服务器上
-- 服务器重启后数据清空，不留痕迹
-- 只有知道配对码的人才能进入（最多2人）
+- 数据**只存在你们的服务器内存中**，服务重启自动清空
+- Android App **只发送应用名称**，不收集任何其他数据
+- Token **只存在设备私有存储**，其他 App 无法读取
+- 没有任何第三方服务，没有统计，没有广告
